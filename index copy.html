@@ -187,6 +187,7 @@
 
         // Drag event for widgets
         function drag(event) {
+            console.log("drag");
             isDragging = true;
             event.dataTransfer.setData("text/plain", event.target.dataset.type);
         }

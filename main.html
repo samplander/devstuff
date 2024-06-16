@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css">
+  <title>Document</title>
+  <style>
+    .sidebar {
+      width: 250px;
+            height: 100vh;
+            background-color: #f8f9fa;
+            padding: 20px;
+            overflow-y: auto;
+    }
+
+    .preview {
+            flex: 1;
+            padding: 20px;
+            border-left: 1px solid #dee2e6;
+    }
+
+    .preview-container{
+            min-height: 200px;
+            background-color: #f0f0f0;
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            font-style: italic;
+            color: #999;
+        }
+
+   
+
+    /* Control the wording based on whether a has-content class is present */
+    #preview-container:before {
+            content: "Drag and drop components here";
+    }
+
+    /* Can be used to remove droparea styling */
+    #preview-container.has-content {
+            content: none;
+            background-color: #5f7896;
+            border: 3px solid  #129e70;
+            padding: 20px;
+            text-align: center;
+            font-style: italic;
+            color: #844141;
+    }
+
+    #preview-container.has-content::before {
+            content: none;
+    }
+
+    .draggable {
+      cursor: move;
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #4e79a5;
+            border-radius: 4px;
+    }
+    .draggable:hover {
+            background-color: #6cce21;
+    }
+
+    
+
+
+  </style>
+</head>
+<body>
+
+  <div class="container-fluid">
+    <div class="row">
+
+   
+      <!-- SideBar -->
+        <div class="sidebar">
+          Section
+          <div class="draggable" draggable="true" data-widget="section">Section</div>
+          Widgets
+          <div class="draggable" draggable="true" data-widget="heading">Heading</div>
+          <div class="draggable" draggable="true" data-widget="divider">Divider?</div>
+          <div class="draggable" draggable="true" data-widget="input">Input</div>
+          <div class="draggable" draggable="true"data-widget="dropdown">Dropdown</div>
+          <div class="draggable" draggable="true"data-widget="table">Table -JSON</div>
+
+  
+        </div>
+ 
+
+        <!-- Preview -->
+        <div class="preview" >
+          Preview Content
+          <div id="preview-container" ondragover="allowDrop(event)" ondrop="drop(event)" class="preview-container"></div>
+        </div>
+
+      
+
+        <button class="btn btn-primary px-2" onclick="exportHTML()">Export</button>
+
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Mock Data -->
+   <script src="./data.js"></script>
+  <script>
+
+
+    //**Drag and Drop logic**//
+    let isDragging = false;
+    let hasConten = false;
+
+    // Drag event for widgets
+    function drag(event) {
+
+    //isDragging = true;
+      event.dataTransfer.setData("text/plain", event.target.dataset.widget);
+      console.log(event.dataTransfer.getData("text"));
+    }
+
+    function allowDrop(event) {
+      //console.log('drop allowed here');
+      event.preventDefault();
+
+      //log out closest element
+      //console.log(event.target.className);
+
+      let targetElement = event.target.className;
+      //console.log(targetElement);
+    }
+
+    function drop(event){
+
+      event.preventDefault();
+      console.log('dropped');
+     
+
+      let droppedWidgetName = event.dataTransfer.getData("text");
+      console.log("Dropped widget name: " + droppedWidgetName);
+
+      //Create section element
+      if(droppedWidgetName == 'section'){
+        //document.getElementById("preview-container").innerHTML = createSection().outerHTML;
+        //create inner section element
+        let droppedSection = createSection();
+        //append section to preview container
+        document.getElementById("preview-container").appendChild(droppedSection);
+        
+      }
+
+      //Create input element
+      if(droppedWidgetName == 'input'){
+        let droppedWidget = createWidget('Input');
+        //get closest section element
+        let closestColumn= event.target.closest('[data-widget="column"]');
+        //insert widget into closest section
+        closestColumn.appendChild(droppedWidget);
+      }
+
+
+      //Create heading element
+      if(droppedWidgetName == 'heading'){
+        let droppedWidget = createWidget('heading');
+        //get closest section element
+        let closestColumn= event.target.closest('[data-widget="column"]');
+        //insert widget into closest section
+        closestColumn.appendChild(droppedWidget);
+      }
+
+      //Create dropdown element
+      if(droppedWidgetName == 'dropdown'){
+        let droppedWidget = createWidget('dropdown');
+        //get closest section element
+        let closestColumn= event.target.closest('[data-widget="column"]');
+        //insert widget into closest section
+        closestColumn.appendChild(droppedWidget);
+      }
+
+      //Create table element
+      if(droppedWidgetName == 'table'){
+        let droppedWidget = createWidget('table');
+        //get closest section element
+        let closestColumn= event.target.closest('[data-widget="column"]');
+        //insert widget into closest section
+        closestColumn.appendChild(droppedWidget);
+      }
+
+      //get a count of nodes in drop area and conditionally add has-content class
+      let countPreviewElements = document.getElementById("preview-container").childElementCount;
+      if(countPreviewElements > 0){
+        //check if class has-content is present get count of has-content class then add if not present
+          if(!document.getElementById("preview-container").classList.contains('has-content')){
+            document.getElementById("preview-container").classList.add('has-content');
+          }
+      }
+
+    }
+
+    function createSection(){
+        let section = document.createElement('div');
+        section.dataset.widget = 'section';
+        //section.innerHTML = 'Section';
+        section.id = 'section' + Math.floor(Math.random() * 1000);
+        section.addEventListener("drop", dropSection);
+        section.classList.add('section');
+        section.style.border = '1px solid #ccc';
+        section.classList.add('m-4', 'p-2');
+
+
+        let promptNumberOfRows = prompt('Enter number of rows');
+        let numberOfRows = parseInt(promptNumberOfRows);
+
+        //Setup Rows
+       for(let i = 0; i < numberOfRows; i++){
+          console.log('row ' + i);
+          let currentRow = document.createElement('div');
+          currentRow.dataset.row = i;
+          //currentRow.innerHTML = `Row ${i}`;
+          currentRow.classList.add('row');
+          currentRow.style.padding = '10px';
+          currentRow.style.margin = '10px';
+
+          let promptNumberOfColumns = prompt(`Number of columns for row ${i}?`);
+          let numberOfColumns = parseInt(promptNumberOfColumns);
+
+          //Setup Columns
+          for(let j = 0; j < numberOfColumns; j++){
+            console.log(`Row ${i} Column ${j}`);
+            let currentColumn = document.createElement('div');
+            currentColumn.dataset.column = j;
+            currentColumn.classList.add('col');
+            currentColumn.dataset.widget = 'column';
+            currentColumn.style.backgroundColor = '#f0f0f0';
+            currentColumn.style.minHeight = '50px';
+            currentColumn.classList.add('m-1', 'p-1');
+            currentRow.appendChild(currentColumn);
+
+          }
+
+          //Add completed row to section
+          section.appendChild(currentRow);
+
+        }
+      return section;
+    }
+
+    function dropSection(event){
+      console.log('section item dropped');
+    }
+
+    function createWidget(widgetName){
+      let widget = document.createElement('div');
+      widget.dataset.widget = widgetName;
+     // widget.innerHTML = widgetName;
+
+      //if widget is input
+      if(widgetName == 'Input'){
+
+        let inputLabel = prompt('Enter input label');
+        let inputPlaceholder = prompt('Enter input placeholder');
+        let inputType = prompt('Enter input type');
+        let inputName = prompt('Enter input name');
+        let inputId = inputName + Math.floor(Math.random() * 1000);
+
+        let inputElement = document.createElement('input');
+        inputElement.type = inputType;
+        inputElement.placeholder = inputPlaceholder;
+        inputElement.name = inputName;
+        inputElement.id = inputId;
+        inputElement.classList.add('form-control');
+
+        let inputGroup = document.createElement('div');
+        inputGroup.classList.add('input-group');
+        inputGroup.appendChild(inputElement);
+
+        let inputGroupText = document.createElement('span');
+        inputGroupText.style.width = '100px';
+        inputGroupText.classList.add('input-group-text');
+        inputGroupText.innerHTML = inputLabel;
+        inputGroup.insertBefore(inputGroupText, inputElement);
+
+        widget.appendChild(inputGroup);
+
+
+      }
+
+      //if widget is heading
+      if(widgetName == 'heading'){
+        let headingText = prompt('Enter heading text');
+        let headingSize = prompt('Enter heading size');
+        let headingElement = document.createElement('h' + headingSize);
+
+        //set bootstrap class for heading
+        headingElement.classList.add('fw-bold');
+        //set heading color to Black
+        headingElement.style.color = 'black';
+        headingElement.style.fontSize = `${headingSize}px`;
+
+        headingElement.innerHTML = headingText;
+        widget.appendChild(headingElement);
+      }
+
+
+      //if widget is dropdown
+      if(widgetName == 'dropdown'){
+        let dropdownLabel = prompt('Enter dropdown label');
+        let dropdownName = prompt('Enter dropdown name');
+        let dropdownOptionsArray = prompt('Enter dropdown options separated by comma').split(',');
+        let dropdownId = dropdownName + Math.floor(Math.random() * 1000);
+
+        let dropdownElement = document.createElement('select');
+        dropdownElement.name = dropdownName;
+        dropdownElement.id = dropdownId;
+        dropdownElement.classList.add('form-select');
+
+        //create dropdown options by looping through the array
+        dropdownOptionsArray.forEach(option => {
+          let dropdownOption = document.createElement('option');
+          dropdownOption.value = option;
+          dropdownOption.innerHTML = option;
+          dropdownElement.appendChild(dropdownOption);
+        });
+
+        let dropdownGroup = document.createElement('div');
+        dropdownGroup.classList.add('input-group');
+        dropdownGroup.appendChild(dropdownElement);
+
+        let dropdownGroupText = document.createElement('span');
+        dropdownGroupText.style.width = '100px';
+        dropdownGroupText.classList.add('input-group-text');
+        dropdownGroupText.innerHTML = dropdownLabel;
+        dropdownGroup.insertBefore(dropdownGroupText, dropdownElement);
+
+        widget.appendChild(dropdownGroup);
+      }
+
+
+
+      //if widget is table
+      if(widgetName == 'table'){
+        let table = document.createElement('table');
+        table.classList.add('table');
+        table.classList.add('table-striped','table-hover');
+
+        let tableHead = document.createElement('thead');
+        let tableHeadRow = document.createElement('tr');
+
+        const tableHeadColumns = Object.keys(data[0]);
+
+        //loop through the tableHeadColumns array and create table head columns
+        tableHeadColumns.forEach(column => {
+          let tableHeadColumn = document.createElement('th');
+          tableHeadColumn.innerHTML = column.toLocaleUpperCase();
+          tableHeadRow.appendChild(tableHeadColumn);
+        });
+
+        tableHead.appendChild(tableHeadRow);
+        table.appendChild(tableHead);
+
+        let tableBody = document.createElement('tbody');
+
+        //loop through the data array and create table rows
+        data.forEach(row => {
+          let tableBodyRow = document.createElement('tr');
+          tableHeadColumns.forEach(column => {
+            let tableBodyColumn = document.createElement('td');
+            tableBodyColumn.innerHTML = row[column];
+            tableBodyRow.appendChild(tableBodyColumn);
+          });
+          tableBody.appendChild(tableBodyRow);
+        });
+
+        table.appendChild(tableBody);
+        widget.appendChild(table);
+
+      }
+
+
+      //add bootstrap class for margin and padding
+      widget.classList.add('m-1', 'p-1');
+      return widget;
+    }
+
+    //create a function that export the preview container HTML including all children and bootstrap cdn
+    function exportHTML(){
+      let previewContainer = document.getElementById('preview-container');
+      let previewContainerHTML = previewContainer.outerHTML;
+      let bootstrapCDN = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css">';
+      let exportHTML = bootstrapCDN + previewContainerHTML;
+      //add padding to the exportHTML
+      exportHTML = '<div class="container">' + exportHTML + '</div>';
+      
+      
+      //open new window and write the exportHTML to it
+      let newWindow = window.open();
+      newWindow.document.write(exportHTML);
+
+    }
+    
+    const dataColumns = Object.keys(data[0]);
+    console.log(dataColumns);
+
+
+
+
+
+    //**Bulk update elements**//
+
+  // Dynamicall link draggable class to all drag method
+  document.querySelectorAll('.draggable').forEach(item => {
+    item.addEventListener('dragstart', drag);
+  });
+
+  </script>
+</body>
+</html>

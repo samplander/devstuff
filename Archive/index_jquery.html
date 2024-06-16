@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+    <!-- 
+    DONE:
+    * Added sections with multiple rows and columns
+    * Added delete on sections and widgets
+    * Added movable sections
+
+    TODO:
+    * Make current EDIT on widgets work
+    * Add edit properties for widgets
+    * Add more widgets (Camera, File Upload, Image)
+    * Add styling properties to widget and section (Padding, margin, border with rounding)
+    * Add button with dynamic link and text
+    * FORMS( with post logic, multi step forms)
+    * TABLES ( Maybe Integrate with Tabulator)
+    * SEARCH (create multiselect search)
+    * Datasource Widget (get data from API)
+
+    OTHER:
+    * Maybe concider using HTMX for dynamic content?
+
+    -->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual HTML Builder</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .sidebar {
+            width: 250px;
+            height: 100vh;
+            background-color: #f8f9fa;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .preview {
+            flex: 1;
+            padding: 20px;
+            border-left: 1px solid #dee2e6;
+        }
+
+        .draggable {
+            cursor: move;
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+        }
+
+        .draggable:hover {
+            background-color: #dee2e6;
+        }
+
+        .section {
+            position: relative;
+            border: 1px solid #dee2e6;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .section .delete-btn {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+        }
+
+        .column {
+            border: 1px dashed #ccc;
+            padding: 10px;
+            min-height: 100px;
+        }
+
+        .widget {
+            position: relative;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f8f9fa;
+        }
+
+        .widget:hover {
+            border-color: #999;
+        }
+
+        .widget .edit-btn,
+        .widget .delete-btn {
+            position: absolute;
+            top: 5px;
+        }
+
+        .widget .delete-btn {
+            left: 5px;
+        }
+
+        .widget .edit-btn {
+            right: 5px;
+        }
+
+        #preview-container {
+            min-height: 200px;
+            background-color: #f0f0f0;
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            font-style: italic;
+            color: #999;
+        }
+
+        #preview-container:before {
+            content: "Drag and drop components here";
+        }
+
+        #preview-container.has-content:before {
+            content: none;
+        }
+
+        /* Section */
+        .section {
+            position: relative;
+            border: 1px solid #dee2e6;
+            padding: 20px;
+            margin-bottom: 20px;
+            cursor: move;
+        }
+
+        .section:hover {
+            background-color: #f8f9fa;
+        }
+
+        .section::before {
+            content: "";
+            position: absolute;
+            top: -10px;
+            left: 0;
+            right: 0;
+            height: 10px;
+            background-color: transparent;
+        }
+
+        .section::after {
+            content: "";
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            right: 0;
+            height: 10px;
+            background-color: transparent;
+        }
+
+        .section.drag-over::before {
+            background-color: #007bff;
+        }
+
+        .section.drag-over::after {
+            background-color: #007bff;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="sidebar">
+                <h4>Components</h4>
+                <div class="draggable" draggable="true" data-type="section">Section</div>
+                <div class="draggable" draggable="true" data-type="input">Input</div>
+                <div class="draggable" draggable="true" data-type="textarea">Textarea</div>
+                <div class="draggable" draggable="true" data-type="select">Dropdown</div>
+                <div class="draggable" draggable="true" data-type="table">Table</div>
+            </div>
+            <div class="preview">
+                <h4>Preview</h4>
+                <div id="preview-container" ondragover="allowDrop(event)" ondrop="drop(event)"></div>
+                <button id="export-btn" class="btn btn-primary mt-3">Export HTML</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="property-modal" class="modal fade" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Properties</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="property-form"></form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-dismiss="modal">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        let isDragging = false;
+
+        // Allow drop event
+        function allowDrop(event) {
+            event.preventDefault();
+        }
+
+        //drag event for widgets
+        function drag(event) {
+            isDragging = true;
+            event.dataTransfer.setData("text/plain", event.target.dataset.type);
+        }
+
+        //Drop event for widgets ## Starting point##
+        function drop(event) {
+            event.preventDefault();
+            if (!isDragging) return;//Eliminate duplicate creation of widgets
+
+            const type = event.dataTransfer.getData("text");
+
+            if (type === "section") {
+                const section = createSection();
+                event.target.appendChild(section);
+            } else {
+                const widget = createWidget(type);
+                const column = event.target.closest(".column");
+                if (column) {
+                    column.appendChild(widget);
+                }
+            }
+
+            isDragging = false;
+        }
+
+        // Create section with rows and columns
+        function createSection() {
+            const section = document.createElement("div");
+            section.classList.add("section");
+            section.setAttribute("draggable", "true");
+            section.id = `section-${Date.now()}`; // Assign a unique id to the section
+            section.addEventListener("dragstart", dragSection);
+            section.addEventListener("dragover", allowDropSection);
+            section.addEventListener("drop", dropSection);
+
+            const rowsInput = prompt("Enter the number of rows:");
+            const rows = parseInt(rowsInput);
+
+            for (let i = 0; i < rows; i++) {
+                const row = document.createElement("div");
+                row.classList.add("row");
+
+                const columnsInput = prompt(`Enter the number of columns for row ${i + 1}:`);
+                const columns = parseInt(columnsInput);
+
+                for (let j = 0; j < columns; j++) {
+                    const column = document.createElement("div");
+                    column.classList.add("col");
+                    column.classList.add("column");
+                    column.setAttribute("ondragover", "allowDrop(event)");
+                    column.setAttribute("ondrop", "drop(event)");
+                    row.appendChild(column);
+                }
+
+                section.appendChild(row);
+            }
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.classList.add("btn", "btn-sm", "btn-danger", "delete-btn");
+            deleteBtn.innerHTML = "Delete";
+            deleteBtn.addEventListener("click", deleteSection);
+
+            section.appendChild(deleteBtn);
+
+            return section;
+        }
+
+        // Drag section
+        function dragSection(event) {
+            event.dataTransfer.setData("text/plain", event.target.id);
+            event.dataTransfer.effectAllowed = "move";
+        }
+
+        // Allow drop section
+        function allowDropSection(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+            const section = event.target.closest(".section");
+            if (section) {
+                const rect = section.getBoundingClientRect();
+                const isTop = event.clientY < rect.top + rect.height / 2;
+                section.classList.toggle("drag-over", isTop);
+            }
+        }
+
+        // Drop section
+        function dropSection(event) {
+            event.preventDefault();
+            const sectionId = event.dataTransfer.getData("text");
+            const draggedSection = document.getElementById(sectionId);
+            const targetSection = event.target.closest(".section");
+
+            if (draggedSection && targetSection && draggedSection !== targetSection) {
+                const rect = targetSection.getBoundingClientRect();
+                const isTop = event.clientY < rect.top + rect.height / 2;
+                if (isTop) {
+                    targetSection.parentNode.insertBefore(draggedSection, targetSection);
+                } else {
+                    targetSection.parentNode.insertBefore(draggedSection, targetSection.nextSibling);
+                }
+            }
+
+            targetSection.classList.remove("drag-over");
+        }
+
+        // Create widget based on type
+        function createWidget(type) {
+            const widget = document.createElement("div");
+            widget.classList.add("widget");
+            widget.dataset.type = type;
+
+            let widgetContent = "";
+
+            switch (type) {
+                case "input":
+                    widgetContent = '<input type="text" class="form-control">';
+                    break;
+                case "textarea":
+                    widgetContent = '<textarea class="form-control"></textarea>';
+                    break;
+                case "select":
+                    widgetContent = `
+            <select class="form-control">
+              <option>Option 1</option>
+              <option>Option 2</option>
+              <option>Option 3</option>
+            </select>
+          `;
+                    break;
+                case "table":
+                    widgetContent = `
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Column 1</th>
+                  <th>Column 2</th>
+                  <th>Column 3</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Row 1, Cell 1</td>
+                  <td>Row 1, Cell 2</td>
+                  <td>Row 1, Cell 3</td>
+                </tr>
+                <tr>
+                  <td>Row 2, Cell 1</td>
+                  <td>Row 2, Cell 2</td>
+                  <td>Row 2, Cell 3</td>
+                </tr>
+              </tbody>
+            </table>
+          `;
+                    break;
+            }
+
+            widget.innerHTML = widgetContent;
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.classList.add("btn", "btn-sm", "btn-danger", "delete-btn");
+            deleteBtn.innerHTML = "Delete";
+            deleteBtn.addEventListener("click", deleteWidget);
+
+            const editBtn = document.createElement("button");
+            editBtn.classList.add("btn", "btn-sm", "btn-primary", "edit-btn");
+            editBtn.innerHTML = "Edit";
+            editBtn.addEventListener("click", openPropertyModal);
+
+            widget.appendChild(deleteBtn);
+            widget.appendChild(editBtn);
+
+            return widget;
+        }
+
+        // Delete section
+        function deleteSection(event) {
+            const section = event.target.closest(".section");
+            if (section) {
+                section.remove();
+            }
+        }
+
+        // Delete widget
+        function deleteWidget(event) {
+            const widget = event.target.closest(".widget");
+            if (widget) {
+                widget.remove();
+            }
+        }
+
+        // Open property modal
+        function openPropertyModal(event) {
+            const widget = event.target.closest(".widget");
+            const type = widget.dataset.type;
+
+            const form = document.getElementById("property-form");
+            form.innerHTML = "";
+
+            // Generate form fields based on widget type
+            switch (type) {
+                case "input":
+                    form.innerHTML = `
+                    <div class="form-group">
+                        <label>Input Type</label>
+                        <select class="form-control" name="inputType">
+                        <option value="text" ${widget.querySelector('input').type === 'text' ? 'selected' : ''}>Text</option>
+                        <option value="number" ${widget.querySelector('input').type === 'number' ? 'selected' : ''}>Number</option>
+                        <option value="email" ${widget.querySelector('input').type === 'email' ? 'selected' : ''}>Email</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Placeholder</label>
+                        <input type="text" class="form-control" name="placeholder" value="${widget.querySelector('input').placeholder}">
+                    </div>
+                    `;
+                    break;
+                case "textarea":
+                    form.innerHTML = `
+                    <div class="form-group">
+                        <label>Rows</label>
+                        <input type="number" class="form-control" name="rows" value="${widget.querySelector('textarea').rows}">
+                    </div>
+                    <div class="form-group">
+                        <label>Placeholder</label>
+                        <input type="text" class="form-control" name="placeholder" value="${widget.querySelector('textarea').placeholder}">
+                    </div>
+                    `;
+                    break;
+                case "select":
+                        form.innerHTML = `
+                        <div class="form-group">
+                            <label>Options (comma-separated)</label>
+                            <input type="text" class="form-control" name="options" value="${Array.from(widget.querySelectorAll('option')).map(option => option.textContent).join(', ')}">
+                        </div>
+                        `;
+                        break;
+                case "table":
+                    const rows = widget.querySelectorAll("tbody tr").length;
+                    const columns = widget.querySelectorAll("thead th").length;
+                    const columnNames = Array.from(widget.querySelectorAll("thead th")).map(th => th.textContent);
+
+                    form.innerHTML = `
+                    <div class="form-group">
+                        <label>Rows</label>
+                        <input type="number" class="form-control" name="rows" value="${rows}">
+                    </div>
+                    <div class="form-group">
+                        <label>Columns</label>
+                        <input type="number" class="form-control" name="columns" value="${columns}">
+                    </div>
+                    <div class="form-group">
+                        <label>Column Names (comma-separated)</label>
+                        <input type="text" class="form-control" name="columnNames" value="${columnNames.join(", ")}">
+                    </div>
+                    `;
+                    break;
+
+                
+            }
+
+            //Show the modal JQUERY
+            $("#property-modal").modal("show");
+
+            // Add event listener to the "Save" button
+            $("#property-modal .btn-primary").off("click").on("click", function() {
+                switch (type) {
+                    case "input":
+                        const inputType = $("#property-modal select[name='inputType']").val();
+                        const inputPlaceholder = $("#property-modal input[name='placeholder']").val();
+
+                        const input = widget.querySelector("input");
+                        input.type = inputType;
+                        input.placeholder = inputPlaceholder;
+                        break;
+                    case "textarea":
+                        const rows = $("#property-modal input[name='rows']").val();
+                        const textareaPlaceholder = $("#property-modal input[name='placeholder']").val();
+
+                        const textarea = widget.querySelector("textarea");
+                        textarea.rows = rows;
+                        textarea.placeholder = textareaPlaceholder;
+                        break;
+                    case "select":
+                        const options = $("#property-modal input[name='options']").val().split(",").map(option => option.trim());
+
+                        const select = widget.querySelector("select");
+                        select.innerHTML = "";
+                        options.forEach(option => {
+                            const optionElement = document.createElement("option");
+                            optionElement.textContent = option;
+                            select.appendChild(optionElement);
+                        });
+                    break;
+
+                    case "table":
+                        const tblrows = parseInt($("#property-modal input[name='rows']").val());
+                        const columns = parseInt($("#property-modal input[name='columns']").val());
+                        const columnNames = $("#property-modal input[name='columnNames']").val().split(",").map(name => name.trim());
+
+                        const table = widget.querySelector("table");
+                        const thead = table.querySelector("thead");
+                        const tbody = table.querySelector("tbody");
+
+                        // Update column names
+                        thead.innerHTML = "<tr></tr>";
+                        columnNames.forEach(name => {
+                            const th = document.createElement("th");
+                            th.textContent = name;
+                            thead.querySelector("tr").appendChild(th);
+                        });
+
+                        // Update rows and columns
+                        tbody.innerHTML = "";
+                        for (let i = 0; i < tblrows; i++) {
+                            const tr = document.createElement("tr");
+                            for (let j = 0; j < columns; j++) {
+                            const td = document.createElement("td");
+                            td.textContent = `Row ${i + 1}, Cell ${j + 1}`;
+                            tr.appendChild(td);
+                            }
+                            tbody.appendChild(tr);
+                        }
+                        break;
+
+
+                }
+
+                $("#property-modal").modal("hide");
+            });
+  
+
+            
+        }
+
+        // Export HTML
+        const exportBtn = document.getElementById("export-btn");
+        exportBtn.addEventListener("click", exportHTML);
+
+        function exportHTML() {
+            const html = document.documentElement.outerHTML;
+            const blob = new Blob([html], { type: "text/html" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "exported.html";
+            a.click();
+        }
+
+        // Add event listeners to draggable elements
+        const draggables = document.querySelectorAll(".draggable");
+        draggables.forEach((draggable) => {
+            draggable.addEventListener("dragstart", drag);
+            draggable.addEventListener("dragend", () => {
+                isDragging = false;
+            });
+        });
+    </script>
+</body>
+
+</html>
